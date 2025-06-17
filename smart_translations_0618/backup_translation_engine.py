@@ -3,19 +3,24 @@ import json
 from difflib import SequenceMatcher
 from config import LANG_CODES
 from text_processor import TextProcessor
-import google.generativeai as genai
+import google.generativeai as genai  # ← Gemini 지원 추가
 import openai 
 from config import LANG_CODES, MODEL_CONFIGS
 
 class TranslationEngine:
     def __init__(self, manager):
         self.manager = manager
-        self.text_processor = TextProcessor(manager)
+        self.text_processor = TextProcessor(manager)  # 이 라인 추가
         self.model_configs = MODEL_CONFIGS
         self._initialize_api_clients()
         self.current_stats = {
-            'total': 0, 'completed': 0, 'failed': 0, 'tm_used': 0,
-            'api_calls': 0, 'gemini_calls': 0, 'gpt_calls': 0
+            'total': 0,
+            'completed': 0,
+            'failed': 0,
+            'tm_used': 0,
+            'api_calls': 0,
+            'gemini_calls': 0,  # ← 추가
+            'gpt_calls': 0      # ← 추가
         }
     
     def analyze_translations(self):
@@ -25,9 +30,12 @@ class TranslationEngine:
         do_cn_tw_trans = self.manager.translate_cn_tw_var.get()
 
         target_langs = set()
-        if do_en_trans: target_langs.add("EN")
-        if do_multi_trans: target_langs.update(self.manager.MULTI_LANG_GROUP)
-        if do_cn_tw_trans: target_langs.update(["CN", "TW"])
+        if do_en_trans:
+            target_langs.add("EN")
+        if do_multi_trans:
+            target_langs.update(self.manager.MULTI_LANG_GROUP)
+        if do_cn_tw_trans:
+            target_langs.update(["CN", "TW"])
 
         if not target_langs:
             from tkinter import messagebox
@@ -35,135 +43,149 @@ class TranslationEngine:
             return
 
         self.manager.update_status("번역 분석 중...")
-        tm_used_count, api_needed_count = 0, 0
+        
+        # === TM 상태 디버깅 정보 ===
+        print(f"현재 TM에 {len(self.manager.translation_memory)}개 항목 로드됨")
+
+        tm_used_count = 0
+        api_needed_count = 0
+
         for trans in self.manager.pending_translations:
-            kr_text, methods, needs_api = trans["KR"], set(), False
+            kr_text = trans["KR"]
+            methods = set()
+            needs_api = False
+
+            # TM에서 확인하여 빈칸 채우기
             if kr_text in self.manager.translation_memory:
                 tm_entry = self.manager.translation_memory[kr_text]
-                if any(trans["translations"].get(lang) != text for lang, text in tm_entry.items() if lang in target_langs and text):
+                filled_any = False
+                for lang, text in tm_entry.items():
+                    if lang in target_langs and not trans["translations"].get(lang) and text:
+                        trans["translations"][lang] = text
+                        filled_any = True
+                if filled_any:
                     methods.add("DB")
                     tm_used_count += 1
+                    print(f"TM 사용: {kr_text} -> {list(tm_entry.keys())}")  # 디버깅
+
+            # 여전히 빈 언어가 있는지 확인
             for lang in target_langs:
                 if not trans["translations"].get(lang):
-                    if lang in ["CN", "TW"] and do_cn_tw_trans: methods.add("DB필요")
-                    else: needs_api = True
+                    if lang in ["CN", "TW"] and do_cn_tw_trans:
+                        methods.add("DB필요")
+                    else:
+                        needs_api = True
+
             if needs_api:
                 methods.add("API필요")
                 api_needed_count += 1
-            trans["method"] = " / ".join(sorted(list(methods))) if methods else "완료"
+                if kr_text in self.manager.translation_memory:
+                    print(f"TM에 있지만 API 필요: {kr_text} -> TM: {self.manager.translation_memory[kr_text]}")
+
+            # 번역 방법 결정
+            if not methods:
+                trans["method"] = "완료"
+            else:
+                trans["method"] = " / ".join(sorted(list(methods)))
+
         self.manager.update_translation_table()
         self.manager.update_status(f"분석 완료. TM사용: {tm_used_count}, API필요: {api_needed_count}")
 
     def _initialize_api_clients(self):
+        """API 클라이언트들 초기화"""
         try:
+            # Gemini 초기화
             if hasattr(self.manager.api_client, 'gemini_api_key'):
                 genai.configure(api_key=self.manager.api_client.gemini_api_key)
                 self.gemini_model = genai.GenerativeModel(self.model_configs['gemini']['model'])
-            else: self.gemini_model = None
+            else:
+                self.gemini_model = None
+                
+            # OpenAI 초기화는 기존 api_client 사용
             print(f"번역 엔진 초기화 완료 - GPT: {self.model_configs['gpt']['model']}, Gemini: {self.model_configs['gemini']['model']}")
+            
         except Exception as e:
             print(f"API 클라이언트 초기화 오류: {e}")
             self.gemini_model = None
             
     def execute_translation(self, items_to_translate):
+        """번역 실행 메인 함수 - 전체 번역 프로세스 관리"""
         if not items_to_translate:
             from tkinter import messagebox
             messagebox.showwarning("알림", "번역할 항목이 선택되지 않았습니다.")
             return
-        self.current_stats = {'total': len(items_to_translate), 'completed': 0, 'failed': 0, 'tm_used': 0, 'api_calls': 0, 'gemini_calls': 0, 'gpt_calls': 0}
-        threading.Thread(target=self._execute_translation_thread_new, args=(items_to_translate,), daemon=True).start()
+            
+        # 통계 초기화
+        self.current_stats = {
+            'total': len(items_to_translate),
+            'completed': 0,
+            'failed': 0,
+            'tm_used': 0,
+            'api_calls': 0
+        }
+        
+        threading.Thread(target=self._execute_translation_thread, args=(items_to_translate,), daemon=True).start()
 
-    def _execute_translation_thread_new(self, items_to_translate):
+    def _execute_translation_thread(self, items_to_translate):
+        """(실무자 스레드) 실제 번역 작업을 지시하고 완료 후 결과를 보고합니다."""
         try:
+            self.manager.update_status("번역 준비 중...")
+            selected_engine = self.manager.api_engine_var.get()
+            use_protection = self.manager.protect_tags_var.get()
+            llm_prompt = self.manager.get_llm_prompt() if selected_engine == 'llm' else None
+            is_scenario_mode = self.manager.scenario_translation_var.get()
+            
             total_items = len(items_to_translate)
-            self.manager.update_progress(0, "번역 준비 중: 텍스트 전처리 시작...")
-
-            all_korean_terms, preprocessed_items = set(), []
-            for i, trans_item in enumerate(items_to_translate):
-                self.manager.update_progress((i / total_items) * 40, f"전처리 중 ({i+1}/{total_items})...")
-                preprocessed_data = self.text_processor.preprocess_for_translation(trans_item['KR'])
-                preprocessed_items.append({'original_item': trans_item, 'preprocessed_data': preprocessed_data})
-                if preprocessed_data['placeholder_map']:
-                    all_korean_terms.update(preprocessed_data['placeholder_map'].values())
-
-            self.manager.update_progress(40, f"{len(all_korean_terms)}개 고유 용어 수집 완료. 일괄 번역 시작...")
-
-            translated_terms_dict = {}
-            if all_korean_terms:
-                print(f"🚀 총 {len(all_korean_terms)}개의 고유 용어를 일괄 번역합니다.")
-                translated_terms_dict = self.manager.api_client.translate_terms_batch(list(all_korean_terms))
-                self.current_stats['api_calls'] += 1
-                self.current_stats['gpt_calls'] += 1
-                print(f"✅ 일괄 번역 완료. {len(translated_terms_dict)}개 용어 번역됨.")
-
-            self.manager.update_progress(60, "문장 재조립 및 후처리 중...")
-
-            final_translated_items = []
-            for i, item_data in enumerate(preprocessed_items):
-                self.manager.update_progress(60 + ((i / total_items) * 40), f"후처리 중 ({i+1}/{total_items})...")
-                trans_item, pre_data = item_data['original_item'], item_data['preprocessed_data']
+            
+            # 시나리오 모드일 때 화자 매핑 준비
+            speaker_mapping = None
+            if is_scenario_mode:
+                speaker_mapping = self.manager.prepare_scenario_translation()
+            
+            for i, trans in enumerate(items_to_translate):
+                progress_percent = (i / total_items) * 100
+                self.manager.root.after(0, self.manager.update_progress, progress_percent, f"번역 중 ({i+1}/{total_items})...")
                 
-                if not self.manager.translate_en_var.get() or trans_item['translations'].get('EN'):
-                    self.current_stats['completed'] += 1
-                    continue
-
-                if not pre_data['template_text']:
-                    en_result = self._translate_single_text(trans_item['KR'])
-                    trans_item['translations']['EN'] = en_result
-                    trans_item['method'] = "API(Full)"
-                else:
-                    reassembled_sentence = self.text_processor.reassemble_from_placeholders(
-                        pre_data['template_text'],
-                        pre_data['placeholder_map'],
-                        translated_terms_dict
+                kr_text = trans['KR']
+                
+                # 1. 전처리 단계
+                preprocessed_data = self._preprocess_text(trans, selected_engine, speaker_mapping)
+                
+                # 2. EN 번역 (메인 번역)
+                if self.manager.translate_en_var.get() and not trans['translations'].get('EN'):
+                    en_result = self._translate_to_english(
+                        preprocessed_data, 
+                        selected_engine, 
+                        llm_prompt, 
+                        use_protection
                     )
-                    
-                    # === [수정된 부분] ===
-                    # 4단계: 최종 문법 교정 단계 추가
-                    final_sentence = self.manager.translation_validator.correct_grammar_with_llm(
-                        reassembled_sentence,
-                        pre_data,
-                        translated_terms_dict
-                    )
-
-                    trans_item['translations']['EN'] = final_sentence
-                    trans_item['method'] = "API(Terms+Polish)" # 번역 방법 업데이트
-                    # === [수정 끝] ===
-
-                kr_len, en_len = len(trans_item['KR']), len(trans_item['translations'].get('EN', ''))
-                ratio = en_len / kr_len if kr_len > 0 else 0
-                print(f"✨ 품질 로그: [ID: {trans_item['STRING_ID']}] KR길이: {kr_len}, EN길이: {en_len}, 비율: {ratio:.2f}")
-
+                    if en_result:
+                        trans['translations']['EN'] = en_result
+                        self.current_stats['api_calls'] += 1
+                
+                # 3. 다국어 번역 (EN 기반)
+                en_text = trans['translations'].get('EN')
+                if en_text:
+                    self._translate_to_multiple_languages(trans, en_text, selected_engine, use_protection)
+                
+                # 4. 후처리 단계
+                self._postprocess_translation(trans, selected_engine)
+                
                 self.current_stats['completed'] += 1
-                final_translated_items.append(trans_item)
 
-            if final_translated_items:
-                updated_krs = self.manager.db_manager.update_translation_memory(final_translated_items)
-                if updated_krs: self.manager.translation_memory = self.manager.db_manager.get_translation_memory()
-                self.manager.root.after(0, self._on_translation_complete, len(updated_krs))
-            else:
-                self.manager.root.after(0, self._on_translation_complete, 0)
+            # 5. DB 저장 및 메모리 업데이트
+            updated_krs = self.manager.db_manager.update_translation_memory(items_to_translate)
+            if updated_krs: 
+                self.manager.translation_memory = self.manager.db_manager.get_translation_memory()
+
+            # 6. UI 업데이트는 메인 스레드에 요청
+            self.manager.root.after(0, self._on_translation_complete, len(updated_krs))
+
         except Exception as e:
             import traceback
             traceback.print_exc()
             self.manager.root.after(0, lambda: self._show_error(f"번역 스레드에서 오류가 발생했습니다:\n{e}"))
             self.manager.update_status("번역 중 오류 발생")
-
-    def _translate_single_text(self, text):
-        llm_prompt = self.manager.get_llm_prompt()
-        return self.manager.api_client.translate('llm', text, prompt=llm_prompt)
-
-    def _on_translation_complete(self, count):
-        self.manager.update_translation_table()
-        self.manager.update_status(f"번역 완료. {count}개 항목 DB 업데이트됨.")
-        self.manager.progress_bar['value'] = 100
-        from tkinter import messagebox
-        messagebox.showinfo("완료", f"{count}개 항목의 번역 및 저장이 완료되었습니다.")
-        
-    def _show_error(self, message):
-        from tkinter import messagebox
-        messagebox.showerror("번역 오류", message)
-        self.manager.update_status("번역 중 오류 발생")
 
     def _preprocess_text(self, trans_item, engine, speaker_mapping=None):
             """번역 전 텍스트 전처리 - TextProcessor에 위임"""
@@ -519,12 +541,27 @@ class TranslationEngine:
                 return speaker
         return None
     
+    def _on_translation_complete(self, count):
+        """번역 완료 후 UI 업데이트 콜백"""
+        self.manager.update_translation_table()
+        self.manager.update_status(f"번역 완료. {count}개 항목 DB 업데이트됨.")
+        self.manager.progress_bar['value'] = 100
+        
+        from tkinter import messagebox
+        messagebox.showinfo("완료", f"{count}개 항목의 번역 및 저장이 완료되었습니다.")
+    
     def _on_force_retranslate_complete(self, success_count, total_count):
         """강제 재번역 완료 후 UI 업데이트"""
         if hasattr(self.manager, 'filter_vars') and '재번역완료' in self.manager.filter_vars:
             self.manager.filter_vars['재번역완료'].set(True)
         self.manager.update_translation_table()
         self.manager.update_status(f"재번역 완료: {success_count}/{total_count}개 성공")
+    
+    def _show_error(self, message):
+        """오류 메시지 표시"""
+        from tkinter import messagebox
+        messagebox.showerror("번역 오류", message)
+        self.manager.update_status("번역 중 오류 발생")
 
     def find_similar_translation(self, kr_text, threshold=0.9):
         """유사 번역 찾기 - 전처리 후 비교"""

@@ -8,7 +8,6 @@ import time
 import uuid
 import hashlib
 import os
-import json # === [추가된 부분] ===
 from config import AZURE_API_KEY, AZURE_REGION, OPENAI_API_KEY
 from utils import TextProtector
 
@@ -28,72 +27,6 @@ class TranslationApiClient:
         # LLM 최적화를 위한 속성
         self.translation_cache = {}
         # token_usage_tracker는 제거되었습니다.
-
-    # === [추가된 부분] ===
-    def translate_terms_batch(self, terms: list, target_lang_name: str = "English") -> dict:
-        """
-        여러 개의 용어를 배치로 한 번에 번역하고 결과를 dict로 반환합니다.
-        """
-        if not self.openai_client:
-            raise ConnectionError("OpenAI API 키가 설정되지 않았습니다.")
-        if not terms:
-            return {}
-
-        # 캐시 키 생성 (모든 용어를 정렬하여 일관된 키 생성)
-        sorted_terms_str = "|".join(sorted(terms))
-        cache_key = hashlib.md5(f"batch_translate|{sorted_terms_str}".encode()).hexdigest()
-        
-        if cache_key in self.translation_cache:
-            return self.translation_cache[cache_key]
-
-        # LLM에 전달할 프롬프트 구성
-        # JSON 형식으로 출력을 유도하여 파싱 용이성을 높임
-        prompt = f"""You are a professional game localizer.
-Translate the following list of Korean game terms into {target_lang_name}.
-Return the result as a single JSON object where keys are the original Korean terms and values are their {target_lang_name} translations.
-
-**TERMS:**
-{json.dumps(terms, ensure_ascii=False, indent=2)}
-
-**JSON_OUTPUT ONLY:**
-"""
-        
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                response = self.openai_client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You must return a single JSON object and nothing else. No explanation."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    response_format={"type": "json_object"}, # JSON 모드 활성화
-                    temperature=0.1,
-                    timeout=60
-                )
-                
-                # === 토큰 사용량 로그 추가 ===
-                if response.usage:
-                    print(f"✅ [Batch Term] Token Usage - Prompt: {response.usage.prompt_tokens}, Completion: {response.usage.completion_tokens}, Total: {response.usage.total_tokens}")
-                
-                # 응답 파싱
-                if response.choices:
-                    content = response.choices[0].message.content.strip()
-                    translated_terms_dict = json.loads(content)
-                    
-                    # 캐시에 저장
-                    self.translation_cache[cache_key] = translated_terms_dict
-                    return translated_terms_dict
-                    
-            except Exception as e:
-                print(f"용어 일괄 번역 API 호출 실패 (시도 {attempt + 1}): {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)
-        
-        # 모든 재시도 실패 시
-        return {}
-    # === [추가 끝] ===
-
 
     # --- Public 메서드 (외부에서 호출) ---
 
@@ -198,11 +131,6 @@ Return the result as a single JSON object where keys are the original Korean ter
                     temperature=0.2,
                     timeout=25
                 )
-                
-                # === 토큰 사용량 로그 추가 ===
-                if response.usage:
-                    print(f"✅ [Single Text] Token Usage - Prompt: {response.usage.prompt_tokens}, Completion: {response.usage.completion_tokens}, Total: {response.usage.total_tokens}")
-
                 if response.choices:
                     result = response.choices[0].message.content.strip()
                     return self._post_process_llm_result(result, text)
@@ -236,6 +164,7 @@ Return the result as a single JSON object where keys are the original Korean ter
 
     def _post_process_llm_result(self, result, original_text):
         """LLM 번역 결과에서 불필요한 부분을 정리합니다."""
+        # 이 부분은 기존 로직을 그대로 사용하거나 더 정교하게 만들 수 있습니다.
         unwanted_phrases = ["here's the translation:", "translation:", "영어 번역:", "번역:"]
         for phrase in unwanted_phrases:
             if result.lower().startswith(phrase):
@@ -252,8 +181,8 @@ Return the result as a single JSON object where keys are the original Korean ter
         return hashlib.md5(cache_string.encode()).hexdigest()
 
     def _get_cached_translation(self, cache_key):
-        # self.token_usage_tracker는 제거되었으므로 관련 로직도 제거
         if cache_key in self.translation_cache:
+            self.token_usage_tracker['cache_hits'] += 1
             return self.translation_cache[cache_key]
         return None
 

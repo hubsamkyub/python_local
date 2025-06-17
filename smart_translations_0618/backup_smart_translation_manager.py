@@ -34,7 +34,7 @@ from ui_setup import UISetup
 from tab_setups import TabSetups
 from translation_engine import TranslationEngine
 from text_processor import TextProcessor
-from translation_validator import TranslationValidator # === [추가된 부분] ===
+from translation_validator import TranslationValidator
 
 class SmartTranslationManager:
     def __init__(self, root):
@@ -89,6 +89,8 @@ class SmartTranslationManager:
         self.initialize_data()
 
     def initialize_data(self):
+        """프로그램 시작 시 필요한 데이터를 로드하고 UI를 업데이트합니다."""
+        ### 수정된 부분: 설정 파일 확인 로직 추가 ###
         missing_files = file_handler.check_config_files()
         if missing_files:
             msg = f"필요한 설정 파일이 없습니다:\n\n" + "\n".join(missing_files) + "\n\n템플릿 파일을 생성하시겠습니까?"
@@ -96,10 +98,10 @@ class SmartTranslationManager:
                 file_handler.create_config_templates()
                 messagebox.showinfo("생성 완료", "설정 파일 템플릿이 생성되었습니다. API 키 등을 입력 후 프로그램을 다시 시작해주세요.")
                 self.root.quit()
-                return
+                return # 프로그램 종료
             else:
                 self.root.quit()
-                return
+                return # 프로그램 종료
         self.db_manager.init_database()
         self.translation_memory = self.db_manager.get_translation_memory()
         self.load_glossary_and_update_ui()
