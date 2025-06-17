@@ -74,30 +74,32 @@ class TranslationEngine:
         threading.Thread(target=self._execute_translation_thread_new, args=(items_to_translate,), daemon=True).start()
 
     def _execute_translation_thread_new(self, items_to_translate):
+        """(최종 버전) 용어집 번역을 직접 사용하고, 문법 교정에만 API를 사용하는 최종 워크플로우"""
         try:
             total_items = len(items_to_translate)
             self.manager.update_progress(0, "번역 준비 중: 텍스트 전처리 시작...")
 
-            all_korean_terms, preprocessed_items = set(), []
+            # 1. 전처리 단계: 모든 항목을 미리 처리
+            preprocessed_items = []
             for i, trans_item in enumerate(items_to_translate):
-                self.manager.update_progress((i / total_items) * 40, f"전처리 중 ({i+1}/{total_items})...")
+                self.manager.update_progress((i / total_items) * 50, f"전처리 중 ({i+1}/{total_items})...")
                 preprocessed_data = self.text_processor.preprocess_for_translation(trans_item['KR'])
                 preprocessed_items.append({'original_item': trans_item, 'preprocessed_data': preprocessed_data})
-                if preprocessed_data['placeholder_map']:
-                    all_korean_terms.update(preprocessed_data['placeholder_map'].values())
 
-            self.manager.update_progress(40, f"{len(all_korean_terms)}개 고유 용어 수집 완료. 일괄 번역 시작...")
-
+            # 2. 번역된 용어 딕셔너리 생성 (API 호출 없이, 용어집에서 직접!)
+            # 이 단계에서 불필요한 API 호출을 제거합니다.
+            self.manager.update_progress(50, "용어집에서 직접 번역본 구성 중...")
             translated_terms_dict = {}
-            if all_korean_terms:
-                print(f"🚀 총 {len(all_korean_terms)}개의 고유 용어를 일괄 번역합니다.")
-                translated_terms_dict = self.manager.api_client.translate_terms_batch(list(all_korean_terms))
-                self.current_stats['api_calls'] += 1
-                self.current_stats['gpt_calls'] += 1
-                print(f"✅ 일괄 번역 완료. {len(translated_terms_dict)}개 용어 번역됨.")
+            for item_data in preprocessed_items:
+                if item_data['preprocessed_data'].get('glossary_matches'):
+                    for match in item_data['preprocessed_data']['glossary_matches']:
+                        # 용어집에 있는 'en' 번역을 직접 사용
+                        translated_terms_dict[match['term']] = match['translations'].get('en')
+            
+            print(f"✅ 용어집 기반 번역 구성 완료. {len(translated_terms_dict)}개 용어 처리 준비됨.")
+            self.manager.update_progress(60, "문장 재조립 및 최종 교정 시작...")
 
-            self.manager.update_progress(60, "문장 재조립 및 후처리 중...")
-
+            # 3. 문장 재조립 및 최종 교정
             final_translated_items = []
             for i, item_data in enumerate(preprocessed_items):
                 self.manager.update_progress(60 + ((i / total_items) * 40), f"후처리 중 ({i+1}/{total_items})...")
@@ -107,36 +109,32 @@ class TranslationEngine:
                     self.current_stats['completed'] += 1
                     continue
 
+                # 용어집 매칭이 없는 경우에만 문장 전체 번역 (기존과 동일)
                 if not pre_data['template_text']:
                     en_result = self._translate_single_text(trans_item['KR'])
                     trans_item['translations']['EN'] = en_result
                     trans_item['method'] = "API(Full)"
                 else:
+                    # 용어집 번역으로 1차 재조립
                     reassembled_sentence = self.text_processor.reassemble_from_placeholders(
                         pre_data['template_text'],
                         pre_data['placeholder_map'],
                         translated_terms_dict
                     )
                     
-                    # === [수정된 부분] ===
-                    # 4단계: 최종 문법 교정 단계 추가
+                    # 최종 문법 교정 (API 호출)
                     final_sentence = self.manager.translation_validator.correct_grammar_with_llm(
                         reassembled_sentence,
                         pre_data,
                         translated_terms_dict
                     )
-
                     trans_item['translations']['EN'] = final_sentence
-                    trans_item['method'] = "API(Terms+Polish)" # 번역 방법 업데이트
-                    # === [수정 끝] ===
-
-                kr_len, en_len = len(trans_item['KR']), len(trans_item['translations'].get('EN', ''))
-                ratio = en_len / kr_len if kr_len > 0 else 0
-                print(f"✨ 품질 로그: [ID: {trans_item['STRING_ID']}] KR길이: {kr_len}, EN길이: {en_len}, 비율: {ratio:.2f}")
+                    trans_item['method'] = "API(Glossary+Polish)" # 새로운 번역 방법
 
                 self.current_stats['completed'] += 1
                 final_translated_items.append(trans_item)
 
+            # 4. DB 저장
             if final_translated_items:
                 updated_krs = self.manager.db_manager.update_translation_memory(final_translated_items)
                 if updated_krs: self.manager.translation_memory = self.manager.db_manager.get_translation_memory()
@@ -148,7 +146,7 @@ class TranslationEngine:
             traceback.print_exc()
             self.manager.root.after(0, lambda: self._show_error(f"번역 스레드에서 오류가 발생했습니다:\n{e}"))
             self.manager.update_status("번역 중 오류 발생")
-
+            
     def _translate_single_text(self, text):
         llm_prompt = self.manager.get_llm_prompt()
         return self.manager.api_client.translate('llm', text, prompt=llm_prompt)

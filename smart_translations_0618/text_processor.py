@@ -97,72 +97,110 @@ class TextProcessor:
             result['processed'] = self._clean_text(kr_text)
             self._analyze_text_structure(result)
             self._apply_glossary_matches(result)
-
             if result['glossary_matches']:
                 template, p_map = self._create_placeholders(result['processed'], result['glossary_matches'])
                 result['template_text'] = template
                 result['placeholder_map'] = p_map
-            
             self._protect_special_elements(result)
             self._handle_html_chunking(result)
             self._estimate_translation_difficulty(result)
             self._validate_preprocessed_text(result)
-            
             self.text_stats['processed_count'] += 1
-            if result['html_info']['is_html']:
-                self.text_stats['html_processed'] += 1
-            
+            if result['html_info']['is_html']: self.text_stats['html_processed'] += 1
         except Exception as e:
             result['warnings'].append(f"전처리 오류: {e}")
             self.text_stats['errors_detected'] += 1
-        
         return result
     
-    # === [추가된 부분] ===
+    # === [추가된 부분] === 
     def reassemble_from_placeholders(self, template_text, placeholder_map, translated_terms_dict):
-        """
-        템플릿과 번역된 용어를 사용해 완전한 문장을 재조립합니다.
-        """
-        if not template_text:
-            return ""
-        
+        if not template_text: return ""
         reassembled_sentence = template_text
-        
-        # 플레이스홀더 맵을 순회하며 템플릿의 플레이스홀더를 번역된 용어로 치환
         for placeholder, original_term in placeholder_map.items():
-            # 번역된 용어 딕셔너리에서 해당 용어의 번역문을 찾음
-            # 만약 번역에 실패했거나 누락된 경우, 원본 한국어 용어로 대체하여 문제를 명확히 표시
             translated_term = translated_terms_dict.get(original_term, f"[번역실패:{original_term}]")
-            
             reassembled_sentence = reassembled_sentence.replace(placeholder, str(translated_term))
-            
         return reassembled_sentence
-    
-    def _create_placeholders(self, text, matches):
-        """
-        용어집 일치 항목을 기반으로 텍스트에 플레이스홀더를 생성합니다.
-        """
-        if not matches:
-            return text, {}
 
-        placeholder_map = {}
-        template_text = text
-        
-        sorted_matches = sorted(matches, key=lambda x: x['start_pos'], reverse=True)
-        
+    def _create_placeholders(self, text, matches):
+        if not matches: return text, {}
+        placeholder_map, template_text = {}, text
+        sorted_matches = sorted(matches, key=lambda x: x['position'], reverse=True)
         placeholder_idx = 0
         for match in sorted_matches:
-            # 중괄호를 이중으로 사용하여 f-string의 자체 형식 지정과 구분
             placeholder = f"{{{{term_{placeholder_idx}}}}}"
-            
             start, end = match['position'], match['end_position']
-            
             placeholder_map[placeholder] = match['term']
             template_text = template_text[:start] + placeholder + template_text[end:]
-            
             placeholder_idx += 1
-            
         return template_text, placeholder_map
+
+
+    def _apply_glossary_matches(self, result):
+        """용어집 매칭 및 적용 (조사 및 단어 경계 처리 강화 + 상세 로그)"""
+        if not self.manager.glossary:
+            print("🐞 DEBUG: _apply_glossary_matches - 용어집(self.manager.glossary)이 비어있습니다.")
+            return
+
+        print(f"--- 🐞 용어집 매칭 시작: \"{result['processed'][:50]}...\" ---")
+        print(f"🐞 DEBUG: 로드된 총 용어집 개수: {len(self.manager.glossary)}")
+        
+        text_only = re.sub(r'<[^>]*>', '', result['processed']) if is_html(result['processed']) else result['processed']
+        sorted_terms = sorted(self.manager.glossary.keys(), key=len, reverse=True)
+        
+        matches = []
+        found_ranges = set()
+        
+        # 한국어 조사를 판별하기 위한 리스트 (더 많은 조사 추가)
+        josa_list = ['은', '는', '이', '가', '을', '를', '의', '과', '와', '에', '에서', '에게', '께', '으로', '로', '다', '만', '도', '뿐', '까지', '부터', '마저', '조차', '하고', '이며', '이라', '여']
+        
+        for kr_term in sorted_terms:
+            try:
+                term_pattern = re.compile(re.escape(kr_term))
+                for match in term_pattern.finditer(text_only):
+                    start, end = match.start(), match.end()
+                    
+                    is_overlapping = any(max(start, r_start) < min(end, r_end) for r_start, r_end in found_ranges)
+                    if is_overlapping:
+                        continue
+
+                    # 단어 경계 확인 (스마트 매칭)
+                    next_char = text_only[end] if end < len(text_only) else ' '
+                    is_boundary = True # 기본적으로 경계가 맞는다고 가정
+                    
+                    # 뒤에 다른 한글이 바로 붙어있으면 더 큰 단어의 일부일 가능성 체크
+                    if '가' <= next_char <= '힣':
+                        # 뒤 글자가 조사가 아니면 경계가 아니라고 판단 (매칭 무시)
+                        if next_char not in josa_list:
+                            is_boundary = False
+                    
+                    # --- 상세 디버깅 로그 ---
+                    print(f"  - 검사 중: '{kr_term}' (위치:{start}-{end}), 뒤따르는 문자: '{next_char}', 단어 경계: {is_boundary}")
+
+                    if not is_boundary:
+                        print(f"    -> 무시: '{kr_term}'은 더 큰 단어의 일부로 판단됨.")
+                        continue
+
+                    print(f"    -> ✅ 매칭 성공: '{kr_term}'")
+                    matches.append({
+                        'term': kr_term,
+                        'position': start,
+                        'end_position': end,
+                        'category': self.manager.glossary[kr_term].get('category', 'etc'),
+                        'translations': self.manager.glossary[kr_term]
+                    })
+                    found_ranges.add((start, end))
+
+            except re.error as e:
+                print(f"⚠️ 정규식 오류: 용어 '{kr_term}' 처리 중 오류 발생 - {e}")
+                continue
+
+        result['glossary_matches'] = sorted(matches, key=lambda x: x['position'])
+        print(f"🐞 DEBUG: 최종 매칭된 용어: {[m['term'] for m in result['glossary_matches']]}")
+        print("--- 🐞 용어집 매칭 종료 ---")
+
+        if result['glossary_matches']:
+            self.text_stats['glossary_applied'] += 1
+    
 
     def postprocess_translation(self, original_kr, translated_text, target_lang='EN'):
         """번역 후 후처리 (HTML 복원 포함)"""
@@ -338,37 +376,6 @@ class TextProcessor:
         if result['html_info']['is_html']:
             metadata['has_markup'] = True
             if result['html_info']['needs_chunking']: metadata['complexity'] = 'complex'
-    
-    
-    def _apply_glossary_matches(self, result):
-        """용어집 매칭 및 적용 (HTML 고려)"""
-        if not self.manager.glossary: return
-        text, matches = result['processed'], []
-        text_only = re.sub(r'<[^>]*>', '', text) if is_html(text) else text
-        sorted_terms = sorted(self.manager.glossary.items(), key=lambda x: len(x[0]), reverse=True)
-        
-        # 찾은 용어의 위치를 기록하기 위한 집합
-        found_ranges = set()
-
-        for kr_term, translations in sorted_terms:
-            if kr_term in text_only:
-                for match in re.finditer(re.escape(kr_term), text_only):
-                    start, end = match.start(), match.end()
-                    
-                    # 겹치는 범위가 있는지 확인
-                    is_overlapping = any(max(start, r_start) < min(end, r_end) for r_start, r_end in found_ranges)
-                    if is_overlapping: continue
-
-                    matches.append({
-                        'term': kr_term, 'position': start, 'end_position': end, 'translations': translations,
-                        'context_before': text_only[max(0, start-10):start], 'context_after': text_only[end:end+10],
-                        'confidence': self._calculate_glossary_confidence(kr_term, text_only, start), 'in_html': is_html(text)
-                    })
-                    found_ranges.add((start, end))
-        
-        # 위치순으로 정렬
-        result['glossary_matches'] = sorted(matches, key=lambda x: x['position'])
-        if result['glossary_matches']: self.text_stats['glossary_applied'] += 1
     
     def _protect_special_elements(self, result):
         """특수 요소 보호 (HTML 태그 포함)"""

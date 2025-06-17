@@ -1,64 +1,167 @@
-# 파일명: database_manager.py
-
 import sqlite3
-import os
 import json
-import re
-from collections import defaultdict, Counter
-import pandas as pd
+import os
+from collections import defaultdict
 
 class DatabaseManager:
     def __init__(self, db_path, legacy_db_path=None):
-        """
-        DatabaseManager를 초기화합니다.
-        - db_path: 메인 데이터베이스 파일 경로
-        - legacy_db_path: 이전 버전의 DB 경로 (선택 사항)
-        """
-        self.db_path = db_path
+        self.db_path = f"{db_path}.db"
         self.legacy_db_path = legacy_db_path
+        self.init_database()
 
+    def init_database(self):
+        """데이터베이스와 필요한 모든 테이블을 초기화합니다. (CREATE IF NOT EXISTS 사용)"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            # 1. translation_memory 테이블
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS translation_memory (
+                kr_text TEXT PRIMARY KEY, translations TEXT, source TEXT,
+                status TEXT, conflict_info TEXT, last_updated TEXT
+            )""")
+            # 2. glossary 테이블
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS glossary (
+                kr TEXT PRIMARY KEY,
+                category TEXT, 
+                en TEXT, cn TEXT, tw TEXT, th TEXT, pt TEXT, es TEXT, 
+                de TEXT, fr TEXT, jp TEXT, engine TEXT, contributor TEXT, 
+                update_at TEXT, verified INTEGER, description TEXT, string_id TEXT
+            )""")
+            # 3. exclusion_rules 테이블
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS exclusion_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT, rule_type TEXT,
+                field TEXT, value TEXT, is_enabled INTEGER DEFAULT 1
+            )""")
+            # 4. speakers 테이블
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS speakers (
+                name TEXT PRIMARY KEY, gender TEXT, tone TEXT, style TEXT, reference_count INTEGER
+            )""")
+            # 5. reference_datasets 테이블
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS reference_datasets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, description TEXT,
+                source_type TEXT, source_path TEXT, target_language TEXT, 
+                total_speakers INTEGER, total_sentences INTEGER,
+                created_at TEXT, last_used TEXT
+            )""")
+            # 6. reference_translations 테이블
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS reference_translations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, dataset_id INTEGER, speaker_name TEXT,
+                kr_text TEXT, translated_text TEXT,
+                FOREIGN KEY (dataset_id) REFERENCES reference_datasets (id)
+            )""")
+            # 7. translation_history 테이블
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS translation_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT, string_id TEXT,
+                kr_text TEXT, translation_method TEXT, status TEXT, details TEXT
+            )""")
+            conn.commit()
+            print(f"✅ 데이터베이스 '{self.db_path}' 초기화 완료.")
+
+    # === [수정된 부분 시작] ===
+    # 각 'get' 함수에 try-except 구문을 추가하여 "no such table" 오류를 처리합니다.
+    
+    def get_translation_memory(self):
+        """번역 메모리(TM)를 로드합니다. 테이블이 없으면 빈 dict를 반환합니다."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT kr_text, translations FROM translation_memory")
+                tm = {row[0]: json.loads(row[1]) for row in cursor.fetchall()}
+                return tm
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                print("⚠️ 경고: translation_memory 테이블이 없어 빈 TM을 반환합니다.")
+                return {}
+            else:
+                raise e
+
+    def get_all_glossary(self):
+        """용어집 전체를 로드합니다. 테이블이 없으면 빈 dict를 반환합니다."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM glossary")
+                # kr을 키로 사용하는 딕셔너리 반환
+                return {row['kr']: dict(row) for row in cursor.fetchall() if row['kr']}
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                print("⚠️ 경고: glossary 테이블이 없어 빈 용어집을 반환합니다.")
+                return {}
+            else:
+                raise e
+
+    def get_exclusion_rules(self, only_enabled=True):
+        """제외 규칙을 로드합니다. 테이블이 없으면 빈 list를 반환합니다."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                query = "SELECT id, description, rule_type, field, value, is_enabled FROM exclusion_rules"
+                if only_enabled:
+                    query += " WHERE is_enabled = 1"
+                cursor.execute(query)
+                return cursor.fetchall()
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                print("⚠️ 경고: exclusion_rules 테이블이 없어 빈 규칙 목록을 반환합니다.")
+                return []
+            else:
+                raise e
+
+    def get_conflicts(self):
+        """충돌 항목들을 로드합니다. 테이블이 없으면 빈 list를 반환합니다."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT kr_text, translations, conflict_info FROM translation_memory WHERE status = 'conflict'")
+                return cursor.fetchall()
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                print("⚠️ 경고: translation_memory 테이블이 없어 충돌 항목을 조회할 수 없습니다.")
+                return []
+            else:
+                raise e
+
+    # === [수정된 부분 끝] ===
+
+    def update_translation_memory(self, translated_items):
+        """번역된 항목들로 TM을 업데이트/삽입합니다."""
+        if not translated_items:
+            return []
+        
+        updated_krs = []
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            for item in translated_items:
+                kr = item.get("KR")
+                if not kr: continue
+                
+                translations_json = json.dumps(item.get("translations", {}))
+                source = item.get("method", "N/A")
+                status = item.get("status", "[완료]").strip("[]")
+                
+                cursor.execute("""
+                    INSERT INTO translation_memory (kr_text, translations, source, status, last_updated)
+                    VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
+                    ON CONFLICT(kr_text) DO UPDATE SET
+                        translations = excluded.translations,
+                        source = excluded.source,
+                        status = excluded.status,
+                        last_updated = datetime('now', 'localtime')
+                """, (kr, translations_json, source, status))
+                updated_krs.append(kr)
+            conn.commit()
+        return updated_krs
+        
     def _get_connection(self):
         """DB 연결 객체를 반환합니다."""
         return sqlite3.connect(self.db_path)
-
-    def init_database(self):
-        """데이터베이스와 모든 테이블을 초기화합니다."""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            # translation_memory 테이블
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS translation_memory (
-                    kr_text TEXT PRIMARY KEY, translations TEXT, usage_count INTEGER DEFAULT 1,
-                    last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP, source TEXT, confidence REAL DEFAULT 1.0,
-                    status TEXT DEFAULT 'consolidated', conflict_info TEXT
-                )
-            """)
-            # glossary 테이블
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS glossary (
-                    string_id TEXT PRIMARY KEY, kr TEXT, en TEXT, cn TEXT, tw TEXT, th TEXT, pt TEXT, es TEXT,
-                    de TEXT, fr TEXT, jp TEXT, engine TEXT, contributor TEXT, update_at TEXT,
-                    verified INTEGER, description TEXT
-                )
-            """)
-            # translation_history 테이블
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS translation_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, string_id TEXT, kr_text TEXT, translations TEXT,
-                    translation_method TEXT, status TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            # exclusion_rules 테이블
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS exclusion_rules (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT, rule_type TEXT NOT NULL,
-                    field TEXT NOT NULL, value TEXT NOT NULL, is_enabled INTEGER NOT NULL DEFAULT 1,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            conn.commit()
-
-    # --- 데이터 조회 (Read) 메서드 ---
 
     def get_tm_entries(self, search_term=""):
         """번역 메모리에서 항목들을 조회하여 리스트로 반환합니다."""
@@ -69,67 +172,6 @@ class DatabaseManager:
             else:
                 cursor.execute("SELECT kr_text, translations FROM translation_memory")
             return cursor.fetchall()
-
-    def get_all_glossary(self):
-        """DB에서 전체 용어집을 로드하여 딕셔너리로 반환합니다."""
-        glossary_data = {}
-        with self._get_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM glossary")
-            for row in cursor.fetchall():
-                if row["kr"]: # kr 값이 있는 경우만 추가
-                    glossary_data[row["kr"]] = dict(row)
-        return glossary_data
-
-    def get_exclusion_rules(self, only_enabled=True):
-        """DB에서 제외 규칙을 불러와 리스트로 반환합니다."""
-        sql = "SELECT id, description, rule_type, field, value, is_enabled FROM exclusion_rules"
-        if only_enabled:
-            sql += " WHERE is_enabled = 1"
-        sql += " ORDER BY id"
-        
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(sql)
-            return cursor.fetchall()
-
-    def get_translation_memory(self):
-        """두 DB(레거시 포함)에서 데이터를 읽어와 번역 메모리(TM)를 구축하고 반환합니다."""
-        translation_memory = {}
-        # 1. 레거시 DB 로드
-        if self.legacy_db_path and os.path.exists(self.legacy_db_path):
-            try:
-                with sqlite3.connect(self.legacy_db_path) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT KR, EN, CN, TW, JP, DE, FR, TH, PT, ES FROM unique_texts")
-                    for row in cursor.fetchall():
-                        kr, translations = row[0], {
-                            "EN": row[1] or "", "CN": row[2] or "", "TW": row[3] or "", "JP": row[4] or "",
-                            "DE": row[5] or "", "FR": row[6] or "", "TH": row[7] or "", "PT": row[8] or "", "ES": row[9] or ""
-                        }
-                        if kr: translation_memory[kr] = translations
-            except Exception as e:
-                print(f"레거시 DB 로드 오류: {e}")
-
-        # 2. 메인 DB 로드 및 병합
-        try:
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT kr_text, translations FROM translation_memory")
-                for kr, trans_json in cursor.fetchall():
-                    if not kr or not trans_json: continue
-                    translations = json.loads(trans_json)
-                    if kr in translation_memory:
-                        for lang, text in translations.items():
-                            if text and not translation_memory[kr].get(lang):
-                                translation_memory[kr][lang] = text
-                    else:
-                        translation_memory[kr] = translations
-        except Exception as e:
-            print(f"메인 DB 로드 오류: {e}")
-            
-        return translation_memory
 
     def get_db_tm_count(self):
         """DB의 TM 항목 수 확인"""
@@ -142,30 +184,6 @@ class DatabaseManager:
             return count
         except:
             return 0
-
-
-    # --- 데이터 수정 (Create, Update, Delete) 메서드 ---
-    
-    def update_translation_memory(self, pending_translations):
-        """번역 작업이 완료된 항목들을 DB와 이력에 저장하고, 업데이트된 KR 목록을 반환합니다."""
-        updated_krs = []
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            for trans in pending_translations:
-                if trans.get("translations"):
-                    cursor.execute("""
-                        INSERT OR REPLACE INTO translation_memory (kr_text, translations, source, confidence) 
-                        VALUES (?, ?, ?, ?)
-                    """, (trans["KR"], json.dumps(trans["translations"]), trans["method"], 1.0 if trans["method"] == "완전일치" else 0.8))
-                    
-                    cursor.execute("""
-                        INSERT INTO translation_history (string_id, kr_text, translations, translation_method, status) 
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (trans["STRING_ID"], trans["KR"], json.dumps(trans["translations"]), trans["method"], trans["status"]))
-                    
-                    updated_krs.append(trans["KR"])
-            conn.commit()
-        return updated_krs
 
     def add_exclusion_rule(self, desc, rule_type, field, value):
         """새로운 제외 규칙을 DB에 추가합니다."""

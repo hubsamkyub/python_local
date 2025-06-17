@@ -19,6 +19,8 @@ from collections import defaultdict, Counter
 import openpyxl
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
+import httplib2
+from google_auth_httplib2 import AuthorizedHttp
 
 # --- 내부 모듈 Import ---
 import file_handler
@@ -100,7 +102,6 @@ class SmartTranslationManager:
             else:
                 self.root.quit()
                 return
-        self.db_manager.init_database()
         self.translation_memory = self.db_manager.get_translation_memory()
         self.load_glossary_and_update_ui()
         self.load_exclusion_rules_and_update_ui()
@@ -194,6 +195,7 @@ class SmartTranslationManager:
     def filter_glossary(self):
         """용어집 KR 필터링"""
         search_term = self.glossary_search_var.get().strip()
+        # 이제 kr_filter 인자가 정상적으로 처리됩니다.
         self.load_glossary_and_update_ui(kr_filter=search_term)
 
     def clear_glossary_filter(self):
@@ -201,20 +203,55 @@ class SmartTranslationManager:
         self.glossary_search_var.set("")
         self.load_glossary_and_update_ui()
         
-    def load_glossary_and_update_ui(self):
-        """[지휘자] DB에서 용어집을 가져와 UI에 표시합니다."""
-        self.glossary = self.db_manager.get_all_glossary()
-        self.glossary_tree.delete(*self.glossary_tree.get_children())
-        for record in self.glossary.values():
-            values = []
-            for col in self.glossary_cols:
-                val = record.get(col)
-                if col == 'verified':
-                    val = "Y" if val == 1 else "N"
-                values.append(val or "")
-            self.glossary_tree.insert("", "end", values=values)
+    def load_glossary_and_update_ui(self, new_data=None, kr_filter=None):
+        """
+        [지휘자] DB 또는 제공된 데이터로 용어집을 가져와 UI에 표시합니다.
+        필터 기능이 추가되었습니다.
+        :param new_data: 제공될 경우, 이 데이터를 사용해 UI를 업데이트합니다.
+        :param kr_filter: KR 컬럼을 기준으로 필터링할 검색어입니다.
+        """
+        try:
+            # 1. 데이터 소스 결정
+            if new_data is not None:
+                # 스레드로부터 직접 데이터를 받은 경우
+                self.glossary = new_data
+                self.update_status("동기화된 데이터로 용어집 UI를 새로고침합니다...")
+            else:
+                # 일반적인 경우 (메모리에 있는 데이터 사용, 없으면 DB에서 로드)
+                if not self.glossary:
+                    self.glossary = self.db_manager.get_all_glossary()
+
+            # 2. 필터링 로직
+            glossary_to_display = self.glossary
+            if kr_filter:
+                self.update_status(f"'{kr_filter}'(으)로 용어집 필터링 중...")
+                # 필터링된 결과를 담을 새로운 딕셔너리
+                glossary_to_display = {
+                    kr: record for kr, record in self.glossary.items()
+                    if kr_filter.lower() in kr.lower()
+                }
+
+            # 3. UI 업데이트
+            self.glossary_tree.delete(*self.glossary_tree.get_children())
             
-            self.update_status("용어집 전체 로드 완료")
+            if not isinstance(glossary_to_display, dict):
+                 print(f"⚠️ 경고: 용어집 데이터가 딕셔너리 형태가 아닙니다. (타입: {type(glossary_to_display)})")
+                 return
+
+            for record in glossary_to_display.values():
+                values = []
+                # `self.glossary_cols`는 tab_setups.py에서 정의됨
+                for col in self.glossary_cols: 
+                    val = record.get(col)
+                    if col == 'verified':
+                        val = "Y" if val == 1 else "N"
+                    values.append(val or "")
+                self.glossary_tree.insert("", "end", values=values)
+            
+            self.update_status(f"용어집 UI 업데이트 완료. {len(glossary_to_display)}/{len(self.glossary)}개 항목 표시.")
+        except Exception as e:
+            messagebox.showerror("UI 업데이트 오류", f"용어집 UI를 새로고침하는 중 오류가 발생했습니다:\n{e}")
+            self.update_status("용어집 UI 업데이트 중 오류 발생.")
 
     def load_exclusion_rules_and_update_ui(self):
         """[지휘자] DB에서 제외 규칙을 가져와 UI에 표시합니다."""
@@ -664,11 +701,15 @@ class SmartTranslationManager:
             creds = service_account.Credentials.from_service_account_file(
                     SERVICE_ACCOUNT_FILE, scopes=SCOPES)
             
-            service = build('sheets', 'v4', credentials=creds)
+            http_with_timeout = httplib2.Http(timeout=120)
+            authed_http = AuthorizedHttp(creds, http=http_with_timeout)
+            # 3. 인증된 클라이언트를 사용하여 서비스 빌드
+            service = build('sheets', 'v4', http=authed_http)
+            
             sheet = service.spreadsheets()
             
             range_name = f"{sheet_name}!A:Z"
-            result = sheet.values().get(spreadsheetId=spreadsheet_id, range=range_name).execute()
+            result = sheet.values().get(spreadsheetId=spreadsheet_id, range=range_name).execute(num_retries=3)
             values = result.get('values', [])
 
             if not values or len(values) < 2:
@@ -1868,14 +1909,16 @@ class SmartTranslationManager:
                 'credentials.json', 
                 scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
             )
-            service = build('sheets', 'v4', credentials=creds)
+            http_with_timeout = httplib2.Http(timeout=120)
+            authed_http = AuthorizedHttp(creds, http=http_with_timeout)
+            service = build('sheets', 'v4', http=authed_http)
             
             # 전체 시트 데이터 가져오기
             range_name = sheet_name
             result = service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id, 
                 range=range_name
-            ).execute()
+            ).execute(num_retries=3)
             
             values = result.get('values', [])
             
@@ -3233,16 +3276,12 @@ class SmartTranslationManager:
 
 
     def load_conflicts_to_view(self):
-        """DB에서 충돌 상태인 항목을 불러와 충돌 해결 탭에 표시"""
+        """DB에서 충돌 상태인 항목을 불러와 충돌 해결 탭에 표시 (db_manager 사용)"""
         self.conflict_tree.delete(*self.conflict_tree.get_children())
         
-        conn = sqlite3.connect(self.translation_db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT kr_text, translations, conflict_info FROM translation_memory WHERE status = 'conflict'")
+        # db_manager를 통해 데이터를 가져오도록 수정
+        conflicts = self.db_manager.get_conflicts()
         
-        conflicts = cursor.fetchall()
-        conn.close()
-
         for kr, trans_json, conflict_json in conflicts:
             translations = json.loads(trans_json)
             conflict_info = json.loads(conflict_json) if conflict_json else {}
@@ -3252,7 +3291,7 @@ class SmartTranslationManager:
             
             for i, lang in enumerate(self.VISIBLE_LANGS):
                 display_values.append(translations.get(lang, ""))
-                if lang in conflict_info:
+                if lang in conflict_info and len(conflict_info[lang]) > 1: # 실제 충돌이 있는지 확인
                     tags[i+1] = 'conflict' # KR 다음부터 언어 컬럼이므로 i+1
                     
             self.conflict_tree.insert("", "end", values=display_values, tags=tags)
@@ -3385,7 +3424,7 @@ class SmartTranslationManager:
         threading.Thread(target=self._sync_gsheet_thread, args=(spreadsheet_id, sheet_name), daemon=True).start()
     
     def _sync_gsheet_thread(self, spreadsheet_id, sheet_name):
-        """(스레드) 구글 시트와 로컬 DB 동기화 (STRING_ID 제거)"""
+        """(스레드) 구글 시트와 로컬 DB 동기화 (Category 컬럼 지원)"""
         try:
             self.update_status("동기화 시작: 구글 시트 데이터 가져오는 중...")
             
@@ -3393,27 +3432,29 @@ class SmartTranslationManager:
             from googleapiclient.discovery import build
 
             creds = service_account.Credentials.from_service_account_file('credentials.json', scopes=['https://www.googleapis.com/auth/spreadsheets.readonly'])
-            service = build('sheets', 'v4', credentials=creds)
+            http_with_timeout = httplib2.Http(timeout=120)
+            authed_http = AuthorizedHttp(creds, http=http_with_timeout)
+            service = build('sheets', 'v4', http=authed_http)
             range_name = sheet_name
             
-            result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=range_name).execute()
+            result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=range_name).execute(num_retries=3)
+        
             master_values = result.get('values', [])
             
             if not master_values or len(master_values) < 2:
                 self.update_status("오류: 마스터 구글 시트에서 데이터를 찾을 수 없습니다.")
                 return
 
+            # 구글 시트의 헤더를 소문자로 통일 (예: '분류' -> '분류')
             master_header = [h.lower() for h in master_values[0]]
             
-            # STRING_ID가 있으면 무시하고 kr을 기준으로 처리
             master_data = {}
             for row in master_values[1:]:
                 row_dict = dict(zip(master_header, row))
                 kr = row_dict.get('kr')
-                if kr and kr.strip():  # kr을 키로 사용
+                if kr and kr.strip():
                     master_data[kr.strip()] = row_dict
 
-            # 로컬 DB 데이터 로드 (kr 기준)
             self.update_status("로컬 캐시 DB와 데이터 비교 중...")
             conn = sqlite3.connect(self.translation_db_path)
             conn.row_factory = sqlite3.Row
@@ -3421,21 +3462,11 @@ class SmartTranslationManager:
             cursor.execute("SELECT * FROM glossary")
             local_data = {row['kr']: dict(row) for row in cursor.fetchall() if row['kr']}
 
-            # 변경점 계산
-            master_keys = set(master_data.keys())
-            local_keys = set(local_data.keys())
-            
-            new_keys = master_keys - local_keys
-            deleted_keys = local_keys - master_keys
+            master_keys, local_keys = set(master_data.keys()), set(local_data.keys())
+            new_keys, deleted_keys = master_keys - local_keys, local_keys - master_keys
             common_keys = master_keys.intersection(local_keys)
             
-            updated_keys = set()
-            for key in common_keys:
-                # 간단한 비교
-                master_row_str = str(sorted(master_data[key].items()))
-                local_row_str = str(sorted(local_data[key].items()))
-                if master_row_str != local_row_str:
-                    updated_keys.add(key)
+            updated_keys = {key for key in common_keys if str(sorted(master_data[key].items())) != str(sorted(local_data[key].items()))}
             
             if not any([new_keys, deleted_keys, updated_keys]):
                 self.update_status("동기화 완료: 변경된 내용이 없습니다.")
@@ -3443,35 +3474,59 @@ class SmartTranslationManager:
                 conn.close()
                 return
                     
-            # 로컬 DB에 변경사항 적용
             self.update_status("로컬 캐시 DB에 변경사항 적용 중...")
-            
-            # 삭제
             if deleted_keys:
                 cursor.executemany("DELETE FROM glossary WHERE kr = ?", [(key,) for key in deleted_keys])
             
-            # 신규 및 변경 (INSERT OR REPLACE로 처리)
             keys_to_upsert = new_keys.union(updated_keys)
             upsert_data = []
-            # STRING_ID 제외한 컬럼들
-            db_cols = ["kr", "en", "cn", "tw", "th", "pt", "es", "de", "fr", "jp", "engine", "contributor", "update_at", "verified", "description"]
+            
+            # === [수정된 부분 시작] ===
+            # DB 컬럼 목록에 'category' 추가
+            db_cols = ["kr", "category", "en", "cn", "tw", "th", "pt", "es", "de", "fr", "jp", "engine", "contributor", "update_at", "verified", "description"]
             
             for key in keys_to_upsert:
                 row_data = master_data[key]
-                db_values = tuple(row_data.get(col, None) for col in db_cols)
+                
+                # 구글 시트의 '분류' 컬럼을 DB의 'category' 컬럼에 매핑
+                # 시트 헤더가 'category'일 것으로 가정
+                db_values = (
+                    row_data.get('kr'),
+                    row_data.get('category'), # '분류' 컬럼의 값을 가져옴
+                    row_data.get('en'), row_data.get('cn'), row_data.get('tw'),
+                    row_data.get('th'), row_data.get('pt'), row_data.get('es'),
+                    row_data.get('de'), row_data.get('fr'), row_data.get('jp'),
+                    row_data.get('engine'), row_data.get('contributor'),
+                    row_data.get('update_at'), int(row_data.get('verified', 0) or 0),
+                    row_data.get('description', '')
+                )
                 upsert_data.append(db_values)
-
+            
             if upsert_data:
-                cursor.executemany(f"INSERT OR REPLACE INTO glossary ({', '.join(db_cols)}) VALUES ({','.join(['?']*len(db_cols))})", upsert_data)
+                # INSERT 문에 category 컬럼 추가
+                cursor.executemany(f"""
+                    INSERT OR REPLACE INTO glossary 
+                    (kr, category, en, cn, tw, th, pt, es, de, fr, jp, engine, contributor, update_at, verified, description)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, upsert_data)
+            # === [수정된 부분 끝] ===
 
             conn.commit()
+            
+            final_glossary_data = self.db_manager.get_all_glossary() 
             conn.close()
 
-            # 완료 및 UI 새로고침
-            self.root.after(0, self.load_glossary_and_update_ui)
+            self.root.after(0, self.load_glossary_and_update_ui, final_glossary_data)
+
             self.update_status("동기화 완료!")
             summary = f"동기화가 완료되었습니다.\n\n- 신규: {len(new_keys)}개\n- 변경: {len(updated_keys)}개\n- 삭제: {len(deleted_keys)}개"
             self.root.after(0, lambda: messagebox.showinfo("동기화 완료", summary, parent=self.root))
+            
+        except Exception as e:
+            self.update_status(f"동기화 오류: {e}")
+            self.root.after(0, lambda: messagebox.showerror("오류", f"동기화 중 오류가 발생했습니다:\n{e}", parent=self.root))
+            import traceback
+            traceback.print_exc()
             
         except Exception as e:
             self.update_status(f"동기화 오류: {e}")
@@ -3765,8 +3820,6 @@ class SmartTranslationManager:
             
             for item in translated_items:
                 kr_text = item["KR"]
-                
-                # 각 언어별로 검증
                 for lang in self.VISIBLE_LANGS:
                     translated_text = item["translations"].get(lang)
                     if translated_text and translated_text.strip():
@@ -3776,28 +3829,23 @@ class SmartTranslationManager:
                 self.root.after(0, lambda: self.update_status("검증할 번역이 없습니다."))
                 return
             
-            # 일괄 검증 실행
             self.root.after(0, lambda: self.update_status(f"{len(validation_pairs)}개 번역 품질 검증 중..."))
             
             batch_results, batch_stats = self.translation_validator.batch_validate_translations(
                 validation_pairs, target_lang='EN'
             )
             
-            # 결과 저장
             self.current_batch_quality = {
-                'results': batch_results,
-                'stats': batch_stats,
-                'timestamp': datetime.now().isoformat(),
-                'total_items': len(translated_items)
+                'results': batch_results, 'stats': batch_stats,
+                'timestamp': datetime.now().isoformat(), 'total_items': len(translated_items)
             }
-            
             self.quality_history.append(self.current_batch_quality)
-            
-            # UI 업데이트
             self.root.after(0, lambda: self._update_ui_with_quality_results(batch_stats))
             
         except Exception as e:
-            self.root.after(0, lambda: self.update_status(f"품질 검증 오류: {e}"))
+            # NameError를 방지하기 위해 람다 함수 수정
+            error_message = f"품질 검증 오류: {e}"
+            self.root.after(0, lambda: self.update_status(error_message))
 
     def _update_ui_with_quality_results(self, batch_stats):
         """품질 검증 결과로 UI 업데이트"""

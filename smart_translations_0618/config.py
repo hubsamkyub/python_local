@@ -45,11 +45,11 @@ MODEL_CONFIGS = {
         # 'model': 'gpt-3.5-turbo',    # 가장 저렴
     },
     'gemini': {
-        'model': 'gemini-1.5-flash',  # 빠르고 저렴한 모델
+        'model': 'gemini-2.0-flash',  # 빠르고 저렴한 모델
         'max_tokens': 1000,
         'temperature': 0.3,
         'top_p': 0.9,
-        # 'model': 'gemini-1.5-pro',   # 더 고성능 모델
+        # 'model': 'gemini-2.0-flash',   # 더 고성능 모델
     },
     'azure': {
         'model': 'gpt-4',  # Azure에 배포된 모델명

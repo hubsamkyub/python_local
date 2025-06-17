@@ -29,35 +29,35 @@ class TranslationApiClient:
         self.translation_cache = {}
         # token_usage_tracker는 제거되었습니다.
 
-    # === [추가된 부분] ===
-    def translate_terms_batch(self, terms: list, target_lang_name: str = "English") -> dict:
+    # === [수정된 부분 시작] ===
+    def translate_terms_batch(self, terms_with_category: list, target_lang_name: str = "English") -> dict:
         """
-        여러 개의 용어를 배치로 한 번에 번역하고 결과를 dict로 반환합니다.
+        '분류' 정보가 포함된 용어들을 배치로 번역합니다.
+        :param terms_with_category: [{'term': '어빈', 'category': 'character'}, ...] 형태의 리스트
         """
-        if not self.openai_client:
-            raise ConnectionError("OpenAI API 키가 설정되지 않았습니다.")
-        if not terms:
-            return {}
+        if not self.openai_client: raise ConnectionError("OpenAI API 키가 설정되지 않았습니다.")
+        if not terms_with_category: return {}
 
-        # 캐시 키 생성 (모든 용어를 정렬하여 일관된 키 생성)
-        sorted_terms_str = "|".join(sorted(terms))
-        cache_key = hashlib.md5(f"batch_translate|{sorted_terms_str}".encode()).hexdigest()
-        
-        if cache_key in self.translation_cache:
-            return self.translation_cache[cache_key]
+        # 캐시 키 생성을 위해 term과 category를 모두 사용
+        sorted_terms_str = "|".join(sorted([f"{t['term']}:{t['category']}" for t in terms_with_category]))
+        cache_key = hashlib.md5(f"batch_translate_v2|{sorted_terms_str}".encode()).hexdigest()
+        if cache_key in self.translation_cache: return self.translation_cache[cache_key]
 
-        # LLM에 전달할 프롬프트 구성
-        # JSON 형식으로 출력을 유도하여 파싱 용이성을 높임
+        # LLM에 전달할 문맥 인식 프롬프트 구성
         prompt = f"""You are a professional game localizer.
-Translate the following list of Korean game terms into {target_lang_name}.
+Translate the following Korean terms into {target_lang_name}, paying close attention to their specified category for proper context.
+- 'character': A person's name.
+- 'place': A location name.
+- 'item': An object, skill, or equipment.
+- 'etc': A general term.
+
 Return the result as a single JSON object where keys are the original Korean terms and values are their {target_lang_name} translations.
 
-**TERMS:**
-{json.dumps(terms, ensure_ascii=False, indent=2)}
+**TERMS_WITH_CATEGORIES:**
+{json.dumps(terms_with_category, ensure_ascii=False, indent=2)}
 
 **JSON_OUTPUT ONLY:**
 """
-        
         max_retries = 3
         for attempt in range(max_retries):
             try:
@@ -67,32 +67,21 @@ Return the result as a single JSON object where keys are the original Korean ter
                         {"role": "system", "content": "You must return a single JSON object and nothing else. No explanation."},
                         {"role": "user", "content": prompt}
                     ],
-                    response_format={"type": "json_object"}, # JSON 모드 활성화
+                    response_format={"type": "json_object"},
                     temperature=0.1,
                     timeout=60
                 )
-                
-                # === 토큰 사용량 로그 추가 ===
                 if response.usage:
-                    print(f"✅ [Batch Term] Token Usage - Prompt: {response.usage.prompt_tokens}, Completion: {response.usage.completion_tokens}, Total: {response.usage.total_tokens}")
-                
-                # 응답 파싱
+                    print(f"✅ [Batch Term w/ Category] Token Usage - Prompt: {response.usage.prompt_tokens}, Completion: {response.usage.completion_tokens}, Total: {response.usage.total_tokens}")
                 if response.choices:
-                    content = response.choices[0].message.content.strip()
-                    translated_terms_dict = json.loads(content)
-                    
-                    # 캐시에 저장
+                    translated_terms_dict = json.loads(response.choices[0].message.content.strip())
                     self.translation_cache[cache_key] = translated_terms_dict
                     return translated_terms_dict
-                    
             except Exception as e:
                 print(f"용어 일괄 번역 API 호출 실패 (시도 {attempt + 1}): {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)
-        
-        # 모든 재시도 실패 시
+                if attempt < max_retries - 1: time.sleep(2 ** attempt)
         return {}
-    # === [추가 끝] ===
+    # === [수정된 부분 끝] ===
 
 
     # --- Public 메서드 (외부에서 호출) ---
