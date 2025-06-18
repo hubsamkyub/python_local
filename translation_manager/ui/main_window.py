@@ -1,20 +1,16 @@
-# tools/translate_tool_main.py
+# ui/main_window.py
 
 import sys
 import logging
+import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QTabWidget, QTextEdit, QHBoxLayout, QLabel, QComboBox, QFileDialog)
 from PyQt5.QtGui import QIcon
 
-# =====================================================================================
-# 1. 새로 분리한 TranslationLogic 클래스를 import 합니다.
-# =====================================================================================
-from .translation_logic import TranslationLogic
-
-# UI 구성에 필요한 다른 모듈들을 import 합니다.
-from .translate.translation_db_manager import TranslationDBManager
+from ..tools.main_logic import TranslationLogic
+from ..tools.translate.translation_db_manager import TranslationDBManager
 from ..utils.config_utils import AppConfig
-from ..ui.common_components import create_group_box, create_file_input, create_button, create_db_selector
+from .common_components import create_group_box, create_file_input, create_button, create_db_selector
 
 
 class TranslationTool(QMainWindow):
@@ -22,15 +18,17 @@ class TranslationTool(QMainWindow):
         super().__init__()
         self.config = AppConfig("config.ini")
         self.db_manager = TranslationDBManager(self)
+        
+        # setup_logging()과 init_ui()가 config를 사용하므로 먼저 호출합니다.
         self.setup_logging()
-        
-        # import해 온 Logic 클래스의 인스턴스를 생성하는 부분은 그대로 유지됩니다.
         self.logic = TranslationLogic(self)
-        
         self.init_ui()
 
     def setup_logging(self):
-        log_file = 'translation_tool.log'
+        # =====================================================================================
+        # 하드코딩된 로그 파일 이름 대신, self.config에서 값을 읽어옵니다.
+        # =====================================================================================
+        log_file = self.config.get('Paths', 'log_file', fallback='translation_tool.log')
         logging.basicConfig(level=logging.INFO,
                             format='%(asctime)s - %(levelname)s - %(message)s',
                             handlers=[logging.FileHandler(log_file, 'w', 'utf-8'),
@@ -43,9 +41,16 @@ class TranslationTool(QMainWindow):
         QApplication.processEvents()
 
     def init_ui(self):
-        self.setWindowTitle("번역 요청 툴")
+        # =====================================================================================
+        # 하드코딩된 창 제목과 아이콘 경로 대신, self.config에서 값을 읽어옵니다.
+        # =====================================================================================
+        window_title = self.config.get('Application', 'title', fallback='번역 요청 툴')
+        self.setWindowTitle(window_title)
         self.setGeometry(100, 100, 1200, 800)
-        self.setWindowIcon(QIcon('icon.png'))
+        
+        icon_path = self.config.get('Application', 'icon', fallback='icon.png')
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
