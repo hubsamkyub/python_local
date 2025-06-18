@@ -1,2 +1,13 @@
 *.json
 *.txt
+*.db
+*.bak
+/Excel_Data_Search_51 (3)/__pycache__
+/Excel_Data_Search_51 (3)/build
+/Excel_Data_Search_51 (3)/tools/__pycache__
+/Excel_Data_Search_51 (3)/tools/translate/__pycache__
+*.pyc
+*.zip
+/smart_translations_0618/dist
+/smart_translations_0618/build
+/Excel_Data_Search_51 (3)/dist

@@ -1,0 +1,74 @@
+2025-05-15 11:07:20,657 - DEBUG - ===== 모듈 로딩 시작 =====
+2025-05-15 11:07:20,921 - DEBUG - ===== 애플리케이션 초기화 시작 =====
+2025-05-15 11:07:20,922 - DEBUG - 파일 로드 성공: search_history_string.json
+2025-05-15 11:07:20,922 - DEBUG - 파일이 존재하지 않음: search_history_reward.json, 기본값 반환
+2025-05-15 11:07:21,364 - DEBUG - 파일 로드 성공: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\excel_cache.json
+2025-05-15 11:07:21,365 - DEBUG - 파일 로드 성공: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\db_cache.json
+2025-05-15 11:07:21,408 - DEBUG - ===== DB 생성 시작 =====
+2025-05-15 11:07:21,409 - DEBUG - 엑셀 캐시 경로: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\excel_cache.json
+2025-05-15 11:07:21,409 - DEBUG - DB 경로: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\string_dbs
+2025-05-15 11:07:21,409 - DEBUG - 데이터 루트 경로: C:\LOH_Trunk\Assets\DB
+2025-05-15 11:07:21,438 - DEBUG - mtime 캐시 경로: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\string_dbs.mtime.json
+2025-05-15 11:07:21,438 - DEBUG - 재구축 필요 여부 확인 중...
+2025-05-15 11:07:21,465 - DEBUG - 재구축 필요 여부: False
+2025-05-15 11:07:21,465 - DEBUG - 변경된 파일 수: 0
+2025-05-15 11:07:21,465 - DEBUG - 이미 최신 상태, DB 로딩 완료
+2025-05-15 11:07:22,797 - DEBUG - 파일 로드 성공: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\excel_cache.json
+2025-05-15 11:07:23,599 - DEBUG - 백업 파일 생성: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\excel_cache.json.bak
+2025-05-15 11:07:23,619 - DEBUG - 파일 저장 완료: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\excel_cache.json
+2025-05-15 11:07:23,620 - DEBUG - 파일 로드 성공: .cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\db_cache.json
+2025-05-15 11:07:23,628 - DEBUG - 백업 파일 생성: .cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\db_cache.json.bak
+2025-05-15 11:07:23,629 - DEBUG - 파일 저장 완료: .cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\db_cache.json
+2025-05-15 11:07:23,632 - DEBUG - ===== DB 생성 시작 =====
+2025-05-15 11:07:23,632 - DEBUG - 엑셀 캐시 경로: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\excel_cache.json
+2025-05-15 11:07:23,632 - DEBUG - DB 경로: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\string_dbs
+2025-05-15 11:07:23,632 - DEBUG - 데이터 루트 경로: C:\LOH_Trunk\Assets\DB
+2025-05-15 11:07:23,632 - DEBUG - mtime 캐시 경로: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\string_dbs.mtime.json
+2025-05-15 11:07:23,632 - DEBUG - 재구축 필요 여부 확인 중...
+2025-05-15 11:07:23,661 - DEBUG - 재구축 필요 여부: False
+2025-05-15 11:07:23,661 - DEBUG - 변경된 파일 수: 0
+2025-05-15 11:07:23,661 - DEBUG - 이미 최신 상태, DB 로딩 완료
+2025-05-15 11:07:26,263 - DEBUG - 파일 로드 성공: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\excel_cache.json
+2025-05-15 11:07:26,383 - DEBUG - 백업 파일 생성: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\excel_cache.json.bak
+2025-05-15 11:07:26,406 - DEBUG - 파일 저장 완료: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\excel_cache.json
+2025-05-15 11:07:26,412 - DEBUG - 파일 로드 성공: .cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\db_cache.json
+2025-05-15 11:07:26,419 - DEBUG - 백업 파일 생성: .cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\db_cache.json.bak
+2025-05-15 11:07:26,420 - DEBUG - 파일 저장 완료: .cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\db_cache.json
+2025-05-15 11:07:26,421 - DEBUG - ===== DB 생성 시작 =====
+2025-05-15 11:07:26,421 - DEBUG - 엑셀 캐시 경로: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\excel_cache.json
+2025-05-15 11:07:26,421 - DEBUG - DB 경로: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\string_dbs
+2025-05-15 11:07:26,421 - DEBUG - 데이터 루트 경로: C:\LOH_Trunk\Assets\DB
+2025-05-15 11:07:26,421 - DEBUG - mtime 캐시 경로: C:\Users\Admin\Desktop\번역\Python_Code\Excel_Data_Search_46_clean\.cache\6f2f57ac48922e3d4d2ef3ee4ca461b7\string_dbs.mtime.json
+2025-05-15 11:07:26,421 - DEBUG - 재구축 필요 여부 확인 중...
+2025-05-15 11:07:26,453 - DEBUG - 재구축 필요 여부: False
+2025-05-15 11:07:26,453 - DEBUG - 변경된 파일 수: 0
+2025-05-15 11:07:26,453 - DEBUG - 이미 최신 상태, DB 로딩 완료
+2025-05-15 11:07:31,578 - DEBUG - StringSearchPopup 초기화 시작
+2025-05-15 11:07:31,579 - DEBUG - 파일 로드 성공: search_history_string.json
+2025-05-15 11:07:34,562 - INFO - 메시지 박스 (info): 검색 결과 없음 - 조건에 맞는 결과가 없습니다.
+2025-05-15 11:07:37,322 - DEBUG - STREAM b'IHDR' 16 13
+2025-05-15 11:07:37,322 - DEBUG - STREAM b'sBIT' 41 4
+2025-05-15 11:07:37,322 - DEBUG - b'sBIT' 41 4 (unknown)
+2025-05-15 11:07:37,322 - DEBUG - STREAM b'sRGB' 57 1
+2025-05-15 11:07:37,322 - DEBUG - STREAM b'gAMA' 70 4
+2025-05-15 11:07:37,322 - DEBUG - STREAM b'pHYs' 86 9
+2025-05-15 11:07:37,322 - DEBUG - STREAM b'tEXt' 107 25
+2025-05-15 11:07:37,322 - DEBUG - STREAM b'IDAT' 144 379
+2025-05-15 11:07:37,326 - DEBUG - STREAM b'IHDR' 16 13
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'sBIT' 41 4
+2025-05-15 11:07:37,327 - DEBUG - b'sBIT' 41 4 (unknown)
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'sRGB' 57 1
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'gAMA' 70 4
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'pHYs' 86 9
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'tEXt' 107 25
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'IDAT' 144 217
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'IHDR' 16 13
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'sBIT' 41 4
+2025-05-15 11:07:37,327 - DEBUG - b'sBIT' 41 4 (unknown)
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'sRGB' 57 1
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'gAMA' 70 4
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'pHYs' 86 9
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'tEXt' 107 25
+2025-05-15 11:07:37,327 - DEBUG - STREAM b'IDAT' 144 279
+2025-05-15 11:07:39,039 - DEBUG - 백업 파일 생성: search_history_string.json.bak
+2025-05-15 11:07:39,039 - DEBUG - 파일 저장 완료: search_history_string.json

@@ -1,0 +1,81 @@
+2025-06-18 23:32:23,748 - app - DEBUG - 파일 로드 성공: search_history_string.json
+2025-06-18 23:32:23,748 - app - DEBUG - 파일이 존재하지 않음: search_history_reward.json, 기본값 반환
+2025-06-18 23:32:24,469 - app - DEBUG - 파일 로드 성공: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\excel_cache.json
+2025-06-18 23:32:24,791 - app - DEBUG - 백업 파일 생성: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\excel_cache.json.bak
+2025-06-18 23:32:24,932 - app - DEBUG - 파일 저장 완료: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\excel_cache.json
+2025-06-18 23:32:24,935 - app - DEBUG - 파일 로드 성공: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\db_cache.json
+2025-06-18 23:32:24,936 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\ GuildAttendance.db
+2025-06-18 23:32:24,937 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\ArenaBotTemplate.db
+2025-06-18 23:32:24,937 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\BattleBotNickname.db
+2025-06-18 23:32:24,939 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\CashShopBonusTw.db
+2025-06-18 23:32:24,940 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\CollectionSkillTemplate .db
+2025-06-18 23:32:24,941 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\CollectionStatTemplate .db
+2025-06-18 23:32:24,942 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\ConsumeTemplate.db
+2025-06-18 23:32:24,943 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\DBProcedureError.db
+2025-06-18 23:32:24,943 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\EventConditionTemplate.db
+2025-06-18 23:32:24,945 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\GachaProbability.db
+2025-06-18 23:32:24,947 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\HeroDefaultGrowth.db
+2025-06-18 23:32:24,952 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\ItemWorkmanshipSlotProb.db
+2025-06-18 23:32:24,954 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\NickNameGen.db
+2025-06-18 23:32:24,955 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\PointTemplate.db
+2025-06-18 23:32:24,956 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\ResonantStoneGMT.db
+2025-06-18 23:32:24,957 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\Sheet1.db
+2025-06-18 23:32:24,960 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\TimeCrackBuffGroup.db
+2025-06-18 23:32:24,962 - app - ERROR - 0KB DB 파일 무시: C:\Users\mage_\Desktop\fow\KR_DB_250430\WhiteListPID.db
+2025-06-18 23:32:24,962 - app - DEBUG - 백업 파일 생성: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\db_cache.json.bak
+2025-06-18 23:32:24,967 - app - DEBUG - 파일 저장 완료: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\db_cache.json
+2025-06-18 23:32:24,985 - app - DEBUG - mtime 캐시 경로: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs.mtime.json
+2025-06-18 23:32:24,990 - app - DEBUG - 파일 로드 성공: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\excel_cache.json
+2025-06-18 23:32:24,991 - app - DEBUG - 파일 로드 성공: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs.mtime.json
+2025-06-18 23:32:24,996 - app - DEBUG - 새 파일 발견: StringDialogue.xlsx
+2025-06-18 23:32:24,996 - app - DEBUG - 새 파일 발견: String_EventDialogue_New.xlsx
+2025-06-18 23:32:24,997 - app - DEBUG - 새 파일 발견: String_UI.xlsx
+2025-06-18 23:32:24,999 - app - DEBUG - 새 파일 발견: Excel_String_1_Local/String_1_Local.xlsx
+2025-06-18 23:32:25,001 - app - DEBUG - 새 파일 발견: Excel_String_1_Local/String_2_Local.xlsx
+2025-06-18 23:32:25,002 - app - DEBUG - 새 파일 발견: Excel_String_1_Local/String_GMT_Local.xlsx
+2025-06-18 23:32:25,003 - app - DEBUG - 새 파일 발견: Excel_String_EventDialogue/String_EventDialogue.xlsx
+2025-06-18 23:32:25,004 - app - DEBUG - 재구축 필요: 7개 파일 변경됨
+2025-06-18 23:32:25,004 - app - DEBUG -   1. StringDialogue.xlsx (새 파일)
+2025-06-18 23:32:25,004 - app - DEBUG -   2. String_EventDialogue_New.xlsx (새 파일)
+2025-06-18 23:32:25,004 - app - DEBUG -   3. String_UI.xlsx (새 파일)
+2025-06-18 23:32:25,004 - app - DEBUG -   4. Excel_String_1_Local/String_1_Local.xlsx (새 파일)
+2025-06-18 23:32:25,004 - app - DEBUG -   5. Excel_String_1_Local/String_2_Local.xlsx (새 파일)
+2025-06-18 23:32:25,004 - app - DEBUG -   ... 외 2개 파일
+2025-06-18 23:32:25,005 - app - DEBUG - 백업 파일 생성: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs.mtime.json.bak
+2025-06-18 23:32:25,005 - app - DEBUG - 파일 저장 완료: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs.mtime.json
+2025-06-18 23:32:25,006 - app - INFO - 재구축 필요: 7개 파일 변경됨
+2025-06-18 23:32:25,006 - app - INFO - DB 재구축 시작
+2025-06-18 23:32:25,012 - app - DEBUG - 파일 로드 성공: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\excel_cache.json
+2025-06-18 23:32:25,012 - app - DEBUG - 파일 로드 성공: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs.mtime.json
+2025-06-18 23:32:25,012 - app - INFO - 변경된 7개 파일만 처리합니다.
+2025-06-18 23:32:25,013 - app - DEBUG - 파일 처리 시작 (1/7): StringDialogue.xlsx
+2025-06-18 23:32:25,013 - app - INFO - 처리 시작: StringDialogue.xlsx (유효 시트 1개)
+2025-06-18 23:32:25,046 - app - WARNING - 빈 시트: StringDialogue.xlsx / StringDialogue
+2025-06-18 23:32:25,047 - app - WARNING - 삽입된 레코드 없음: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs\StringDialogue.db
+2025-06-18 23:32:25,047 - app - DEBUG - 파일 처리 시작 (2/7): String_EventDialogue_New.xlsx
+2025-06-18 23:32:25,048 - app - INFO - 처리 시작: String_EventDialogue_New.xlsx (유효 시트 1개)
+2025-06-18 23:32:25,260 - app - WARNING - 빈 시트: String_EventDialogue_New.xlsx / String_EventDialogue_New
+2025-06-18 23:32:25,260 - app - WARNING - 삽입된 레코드 없음: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs\String_EventDialogue_New.db
+2025-06-18 23:32:25,261 - app - DEBUG - 파일 처리 시작 (3/7): String_UI.xlsx
+2025-06-18 23:32:25,261 - app - INFO - 처리 시작: String_UI.xlsx (유효 시트 1개)
+2025-06-18 23:32:25,287 - app - WARNING - 빈 시트: String_UI.xlsx / String_UI
+2025-06-18 23:32:25,287 - app - WARNING - 삽입된 레코드 없음: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs\String_UI.db
+2025-06-18 23:32:25,288 - app - DEBUG - 파일 처리 시작 (4/7): Excel_String_1_Local/String_1_Local.xlsx
+2025-06-18 23:32:25,288 - app - INFO - 처리 시작: String_1_Local.xlsx (유효 시트 1개)
+2025-06-18 23:32:25,304 - app - WARNING - 빈 시트: String_1_Local.xlsx / String_1_Local
+2025-06-18 23:32:25,304 - app - WARNING - 삽입된 레코드 없음: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs\Excel_String_1_Local_String_1_Local.db
+2025-06-18 23:32:25,304 - app - DEBUG - 파일 처리 시작 (5/7): Excel_String_1_Local/String_2_Local.xlsx
+2025-06-18 23:32:25,305 - app - INFO - 처리 시작: String_2_Local.xlsx (유효 시트 1개)
+2025-06-18 23:32:25,322 - app - WARNING - 빈 시트: String_2_Local.xlsx / String_2_Local
+2025-06-18 23:32:25,322 - app - WARNING - 삽입된 레코드 없음: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs\Excel_String_1_Local_String_2_Local.db
+2025-06-18 23:32:25,322 - app - DEBUG - 파일 처리 시작 (6/7): Excel_String_1_Local/String_GMT_Local.xlsx
+2025-06-18 23:32:25,323 - app - INFO - 처리 시작: String_GMT_Local.xlsx (유효 시트 1개)
+2025-06-18 23:32:25,342 - app - WARNING - 빈 시트: String_GMT_Local.xlsx / String_GMT_Local
+2025-06-18 23:32:25,342 - app - WARNING - 삽입된 레코드 없음: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs\Excel_String_1_Local_String_GMT_Local.db
+2025-06-18 23:32:25,342 - app - DEBUG - 파일 처리 시작 (7/7): Excel_String_EventDialogue/String_EventDialogue.xlsx
+2025-06-18 23:32:25,343 - app - INFO - 처리 시작: String_EventDialogue.xlsx (유효 시트 1개)
+2025-06-18 23:32:25,541 - app - WARNING - 빈 시트: String_EventDialogue.xlsx / String_EventDialogue
+2025-06-18 23:32:25,542 - app - WARNING - 삽입된 레코드 없음: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs\Excel_String_EventDialogue_String_EventDialogue.db
+2025-06-18 23:32:25,543 - app - DEBUG - 백업 파일 생성: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs.mtime.json.bak
+2025-06-18 23:32:25,544 - app - DEBUG - 파일 저장 완료: D:\Project_home\Code\fow_tools\Excel_Data_Search_51 (3)\.cache\bad20839c677073d0196d459ec21e2a8\string_dbs.mtime.json
+2025-06-18 23:32:25,544 - app - INFO - ✅ 파일 단위 DB 갱신 완료: 0개, 0초 소요
